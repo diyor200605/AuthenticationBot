@@ -3,7 +3,7 @@ from aiogram import Router, Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
-from database import init_db, is_logged, check_user, username_exists, set_logged, register_user
+from database import init_db, is_logged, check_user, username_exists, set_logged, register_user, check_email
 from aiogram.client.default import DefaultBotProperties
 from state import RegisterState, LoginState
 from keyboards import main_kb
@@ -34,8 +34,15 @@ async def reg_get_username(message: Message, state: FSMContext):
     if username_exists(username):
         return await message.answer('Такой username уже занят. Выберите другой: ')
     await state.update_data(username=username)
+    await message.answer('Введите почту: ')
+    await state.set_state(RegisterState.email)
+
+
+@router.message(RegisterState.email)
+async def reg_get_email(message: Message, state: FSMContext):
     await message.answer('Введите пароль: ')
-    await state.set_state(RegisterState.password)
+    await state.set_data(RegisterState.password)
+
 
 @router.message(RegisterState.password)
 async def reg_password(message: Message, state: FSMContext):
@@ -53,6 +60,20 @@ async def cmd_login(message: Message, state: FSMContext):
 
 @router.message(LoginState.username)
 async def login_username(message: Message, state: FSMContext):
+    await message.answer('Введите почту: ')
+    data = await state.get_data()
+    email = data.get('email')
+    email2 = message.text
+    found = check_email(email, email2)
+    if not found != message.from_user_id:
+        await state.clear()
+        return await message.answer('Неверная почта, Введите верную почту!')
+    if found == message.from_user_id:
+        await state.clear()
+    await state.set_data(LoginState.email)
+
+@router.message(LoginState.email)
+async def login_email(message: Message, state: FSMContext):
     await state.update_data(username=message.text)
     await message.answer('Введите password: ')
     await state.set_state(LoginState.password)
@@ -71,3 +92,11 @@ async def login_password(message: Message, state: FSMContext):
     await message.answer('Успешный вход', reply_markup=main_kb)
 
 
+async def main():
+    init_db()
+    dp.include_router(router)
+    await dp.start_polling(bot)
+
+if __name__  == '__main__':
+    dp.include_router(router)
+    dp.run_polling(bot)

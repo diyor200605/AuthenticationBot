@@ -22,22 +22,33 @@ def init_db():
         conn.commit()
 
 
-def register_user(username: str, password: str, tg_id: int):
+def register_user(username: str, password: str, email: str, tg_id: int):
     with sqlite3.connect('auth.db') as conn:
         cur = conn.cursor()
-        cur.execute("INSERT INTO users (username, password, tg_id) VALUES (?,?,?)", (username, password, tg_id))
+        cur.execute("INSERT INTO users (username, password, email, tg_id) VALUES (?,?,?,?)", (username, password, email, tg_id))
         cur.execute("INSERT OR REPLACE INTO sessions (tg_id, is_logged) VALUES (?, 1)", (tg_id,))
         conn.commit()
 
 
-def check_user(username: str, password: str):
+def check_user(username: str, email: str, password: str):
     with sqlite3.connect('auth.db') as conn:
         cur = conn.cursor()
-        cur.execute("SELECT tg_id FROM users WHERE  username=? AND password=?", (username, password))
+        cur.execute("SELECT tg_id FROM users WHERE  username=? AND email=? AND password=?", (username, email, password))
         row = cur.fetchone()
         if row:
             return True, row[0]
         return False, None
+
+
+def check_email(username: str, email: str, password: str):
+    with sqlite3.connect('auth.db') as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT tg_id FROM users WHERE username=? AND email=? AND password=?", (username, email , password))
+        row = cur.fetchone()
+        if row:
+            return True, row[0]
+        return False, None
+
 
 
 def is_logged(tg_id: int):
